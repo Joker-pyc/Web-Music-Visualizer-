@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,73 +11,67 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      background-image: linear-gradient(to bottom, #0b183a, #000000); /* Background gradient */
+      background-image: linear-gradient(to bottom, #0b183a, #000000);
       font-family: Arial, sans-serif;
     }
     #visualizerCanvas {
       display: block;
       margin: auto;
     }
-    #fileSelector {
+    #fileSelector, #playPauseButton, #fullscreenButton, #musicNameLabel, #title, #instructions {
       position: absolute;
-      top: 20px;
-      left: 20px;
-      padding: 10px;
-      border: 2px solid white;
-      background-color: transparent;
       color: white;
       font-size: 16px;
-      cursor: pointer;
-      z-index: 2;
     }
+    #fileSelector {
+  top: 20px;
+  left: 20px;
+  padding: 10px;
+  border: 2px solid white;
+  background-color: transparent;
+  cursor: pointer;
+  z-index: 2;
+  color: white; /* Additional styles specific to the label */
+  font-size: 16px;
+}
+
+#audioFileInput {
+  /* Add any specific styles for the file input here */
+  display: none; /* Optional: hide the file input, you can change this based on your needs */
+}
     #playPauseButton {
-      position: absolute;
       top: 20px;
       right: 120px;
       padding: 10px;
       border: 2px solid white;
       background-color: transparent;
-      color: white;
-      font-size: 16px;
       cursor: pointer;
       z-index: 2;
     }
     #fullscreenButton {
-      position: absolute;
       top: 20px;
       right: 20px;
       padding: 10px;
       border: 2px solid white;
       background-color: transparent;
-      color: white;
-      font-size: 16px;
       cursor: pointer;
       z-index: 2;
     }
     #musicNameLabel {
-      position: absolute;
-      top: 140px;
+      top: 50px;
       right: 20px;
-      color: white;
-      font-size: 16px;
-      visibility: hidden; /* Initially hidden */
-      transition: visibility 0s, opacity 0.4s; /* Add a smooth transition */
+      visibility: hidden;
+      transition: visibility 0s, opacity 0.4s;
     }
     #title {
-      position: absolute;
       top: 80px;
       left: 50%;
       transform: translateX(-50%);
-      color: white;
-      font-size: 10px;
     }
     #instructions {
-      position: absolute;
       bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
-      color: white;
-      font-size: 16px;
       text-align: center;
     }
   </style>
@@ -105,11 +99,12 @@
     let audioSource = null;
     let isPlaying = false;
     let musicName = "";
+    let audioBuffer;
 
     const particles = [];
     const maxParticles = 60;
     const trailParticles = [];
-    const trailOpacityDecay = 0.02;
+    const trailOpacityDecay = 0.2;
     const maxTrailOpacity = 0.8;
     const baseHue = 200;
     const hueRange = 120;
@@ -203,7 +198,7 @@
       analyser.fftSize = 256;
       analyser.connect(audioContext.destination);
 
-      const audioBuffer = await audioContext.decodeAudioData(buffer);
+      audioBuffer = await audioContext.decodeAudioData(buffer);
       audioSource = audioContext.createBufferSource();
       audioSource.buffer = audioBuffer;
 
@@ -224,8 +219,13 @@
         }
         const average = sum / bufferLength;
 
-        if (average > 0.05) {
-          beats.push({ x: canvas.width * 0.5, y: canvas.height * 0.5 });
+        for (const particle of particles) {
+          particle.velocity = 0.5 + average * 10;
+          particle.radius = 1 + average * 5;
+        }
+
+        if (average > 0.01) {
+          beats.push({ x: canvas.width * 0.8, y: canvas.height * 0.8 });
         }
       };
 
@@ -235,19 +235,32 @@
       playPauseButton.textContent = 'Pause';
     }
 
-    function togglePlayPause() {
-      if (isPlaying) {
-        audioSource.stop();
-        isPlaying = false;
-        playPauseButton.textContent = 'Play';
-      } else {
-        if (audioSource) {
-          audioSource.start(0);
-          isPlaying = true;
-          playPauseButton.textContent = 'Pause';
-        }
-      }
+    let startTime = 0;
+let elapsedTime = 0;
+
+function togglePlayPause() {
+  if (isPlaying) {
+    if (audioSource) {
+      audioSource.stop();
+      elapsedTime = audioContext.currentTime - startTime;
     }
+    isPlaying = false;
+    playPauseButton.textContent = 'Play';
+  } else {
+    if (audioBuffer) {
+      audioSource = audioContext.createBufferSource();
+      audioSource.buffer = audioBuffer;
+      audioSource.connect(analyser);
+
+      startTime = audioContext.currentTime - elapsedTime;
+
+      audioSource.start(0, elapsedTime);
+      isPlaying = true;
+      playPauseButton.textContent = 'Pause';
+    }
+  }
+}
+
 
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
@@ -272,9 +285,7 @@
     window.addEventListener('resize', initializeParticles);
 
     playPauseButton.addEventListener('click', togglePlayPause);
-    playPauseButton.addEventListener('touchend', togglePlayPause);
     fullscreenButton.addEventListener('click', toggleFullscreen);
-    fullscreenButton.addEventListener('touchend', toggleFullscreen);
   </script>
 </body>
 </html>
